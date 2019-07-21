@@ -1,26 +1,42 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useEffect, useRef, useState } from "react";
+import { marketplaceRequest } from "networking/marketplaceRequest";
+import { ProgressBar } from "components/ProgressBar";
+import { AverageCount } from "components/AverageCount";
+import { Filter } from "components/Filter";
+import { marketplaceStore } from "store/MarketplaceStore";
+import { observer } from "mobx-react";
 
 const App: React.FC = () => {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
-}
+  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const totalPages = useRef(0);
 
-export default App;
+  useEffect(() => {
+    marketplaceRequest(page, marketplaceStore.selectedRating).then(
+      countOfPages => {
+        totalPages.current = countOfPages;
+        const lastPageIndex = totalPages.current - 1; // pages are indexed from 0, therefore the latest page index is equal to its count - 1
+        setLoading(lastPageIndex > page);
+
+        lastPageIndex > page &&
+          setPage(previouslyRequestedPage => previouslyRequestedPage + 1);
+      }
+    );
+  }, [page]);
+
+  return (
+    <>
+      <Filter
+        onFilterChange={(selectedFilterValue: string) => {
+          marketplaceStore.setSelectedRating(selectedFilterValue);
+          setPage(0);
+        }}
+        selectedValue={marketplaceStore.selectedRating}
+      />
+      <ProgressBar current={page + 1} total={totalPages.current} />
+      <AverageCount loading={loading} />
+    </>
+  );
+};
+
+export default observer(App);
